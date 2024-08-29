@@ -1,16 +1,32 @@
-# This is a sample Python script.
+import asyncio
+from aiogram import Bot, Dispatcher, types
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.filters import Command
+from config import token
+import psycopg2
+import config
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
+bot = Bot(token=token)
+storage = MemoryStorage()
+dp = Dispatcher(storage=storage)
 
+@dp.message(Command('start'))
+async def cmd_start(message: types.Message):
+    conn = psycopg2.connect(dbname = config.dbname_, user = config.user_, password = config.password_, host = config.host_)
+    cursor = conn.cursor()
+    cursor.execute('SELECT COUNT(*) FROM users WHERE tg_id = ' + str(message.from_user.id))
+    if(cursor.fetchone()[0] > 0):
+        await bot.send_message(message.chat.id, "Привет! Ты уже зарегеистрирован!")
+    else:
+        cursor.execute('INSERT INTO users VALUES (' + str(message.from_user.id) + ');')
+        conn.commit()
+        await bot.send_message(message.chat.id, "Привет! Давай начнем!")
 
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+async def main():
+    await dp.start_polling(bot)
 
-
-# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        exit(52)
